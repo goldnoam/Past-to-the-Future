@@ -1,5 +1,4 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
 
 interface ComparisonSliderProps {
   originalImage: string;
@@ -12,89 +11,105 @@ const ComparisonSlider: React.FC<ComparisonSliderProps> = ({ originalImage, gene
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMove = (event: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
-    if (!isDragging || !containerRef.current) return;
-
+  const handleMove = useCallback((clientX: number) => {
+    if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    let clientX;
-
-    if ('touches' in event) {
-      clientX = event.touches[0].clientX;
-    } else {
-      clientX = (event as React.MouseEvent).clientX;
-    }
-
     const position = ((clientX - rect.left) / rect.width) * 100;
     setSliderPosition(Math.min(Math.max(position, 0), 100));
+  }, []);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    handleMove(e.clientX);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    handleMove(e.touches[0].clientX);
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      setSliderPosition(p => Math.max(0, p - 5));
+    } else if (e.key === 'ArrowRight') {
+      setSliderPosition(p => Math.min(100, p + 5));
+    }
   };
 
   useEffect(() => {
-    const handleGlobalMove = (e: MouseEvent | TouchEvent) => handleMove(e);
+    const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      handleMove(clientX);
+    };
     const handleGlobalUp = () => setIsDragging(false);
 
     if (isDragging) {
       window.addEventListener('mousemove', handleGlobalMove);
-      window.addEventListener('mouseup', handleGlobalUp);
       window.addEventListener('touchmove', handleGlobalMove);
+      window.addEventListener('mouseup', handleGlobalUp);
       window.addEventListener('touchend', handleGlobalUp);
     }
-
     return () => {
       window.removeEventListener('mousemove', handleGlobalMove);
-      window.removeEventListener('mouseup', handleGlobalUp);
       window.removeEventListener('touchmove', handleGlobalMove);
+      window.removeEventListener('mouseup', handleGlobalUp);
       window.removeEventListener('touchend', handleGlobalUp);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDragging]);
+  }, [isDragging, handleMove]);
 
   return (
     <div 
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden select-none cursor-col-resize group ${className}`}
-      onMouseDown={() => setIsDragging(true)}
-      onTouchStart={() => setIsDragging(true)}
+      className={`relative w-full h-full select-none group focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${className}`}
+      style={{ touchAction: 'none' }}
+      tabIndex={0}
+      role="slider"
+      aria-label="Before and after comparison. Use left and right arrow keys to adjust."
+      aria-valuenow={sliderPosition}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      onKeyDown={onKeyDown}
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
     >
-      {/* Original Image (Right/Background) */}
+      {/* Original (Background) - Right Side */}
       <img 
         src={originalImage} 
         alt="Original" 
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover" 
       />
       
-      {/* Label for Original */}
-      <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none z-10">
+      {/* Generated (Foreground) - Left Side */}
+      <div 
+        className="absolute inset-0 w-full h-full"
+        style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+      >
+         <img 
+            src={generatedImage} 
+            alt="Generated" 
+            className="absolute inset-0 w-full h-full object-cover"
+         />
+      </div>
+
+      {/* Labels */}
+      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded pointer-events-none select-none z-10 backdrop-blur-sm">
         Original
       </div>
-
-      {/* Generated Image (Left/Foreground) - Clipped */}
-      <div 
-        className="absolute inset-0 w-full h-full overflow-hidden"
-        style={{ width: `${sliderPosition}%` }}
-      >
-        <img 
-          src={generatedImage} 
-          alt="Generated" 
-          className="absolute top-0 left-0 max-w-none h-full"
-          style={{ width: containerRef.current ? containerRef.current.offsetWidth : '100%' }} 
-          // Dynamic width calculation required so image doesn't squish
-        />
+      <div className="absolute top-2 left-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded pointer-events-none select-none z-10 shadow-sm">
+        Result
       </div>
 
-      {/* Label for Generated */}
-      <div className="absolute top-2 left-2 bg-indigo-600/80 text-white text-xs px-2 py-1 rounded pointer-events-none z-10">
-        Generated
-      </div>
-
-      {/* Slider Handle */}
+      {/* Handle Line */}
       <div 
-        className="absolute top-0 bottom-0 w-1 bg-white cursor-col-resize flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"
+        className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"
         style={{ left: `${sliderPosition}%` }}
       >
-        <div className="w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center transform -translate-x-0.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-indigo-600">
-              <path fillRule="evenodd" d="M13.28 3.97a.75.75 0 010 1.06L6.31 12l6.97 6.97a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0zm6 0a.75.75 0 010 1.06L12.31 12l6.97 6.97a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
-            </svg>
+         {/* Handle Button */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center text-indigo-600">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" transform="rotate(90 12 12)" />
+             </svg>
         </div>
       </div>
     </div>
