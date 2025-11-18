@@ -1,0 +1,5 @@
+{
+  "name": "Past to the Future AI",
+  "description": "Upload an image of a person and see what they might have looked like in the past and could look like in the future. You can also generate an animated smiling avatar. All generated images can be downloaded, zoomed, and shared.",
+  "requestFramePermissions": []
+}
