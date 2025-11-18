@@ -1,17 +1,18 @@
 
-import React from 'react';
-import { SpinnerIcon, ZoomInIcon, DownloadIcon, ShareIcon, CompareIcon, RetryIcon } from './icons';
-import type { GeneratedImage } from '../types';
+import React, { useState } from 'react';
+import { SpinnerIcon, ZoomInIcon, DownloadIcon, ShareIcon, CompareIcon } from './icons';
+import ComparisonSlider from './ComparisonSlider';
 
 interface ImageCardProps {
-  image: GeneratedImage;
+  title: string;
+  imageUrl: string | null;
+  originalImageUrl?: string;
+  isLoading: boolean;
   onZoom: (url: string) => void;
-  onCompare: () => void;
-  onRetry: () => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ image, onZoom, onCompare, onRetry }) => {
-  const { title, src: imageUrl, isLoading, error } = image;
+const ImageCard: React.FC<ImageCardProps> = ({ title, imageUrl, originalImageUrl, isLoading, onZoom }) => {
+  const [isComparing, setIsComparing] = useState(false);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -47,42 +48,45 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onZoom, onCompare, onRetry
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300">
-      <div 
-        className={`relative aspect-square w-full bg-gray-900 flex items-center justify-center ${imageUrl && !isLoading ? 'cursor-pointer' : ''}`}
-        onClick={() => imageUrl && !isLoading && onZoom(imageUrl)}
-        title={imageUrl && !isLoading ? 'Click to zoom' : ''}
-      >
+    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col transform hover:scale-[1.02] transition-transform duration-300">
+      <div className="relative aspect-square w-full bg-gray-900 flex items-center justify-center group">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center z-20">
             <SpinnerIcon className="w-12 h-12 text-indigo-500" />
           </div>
         )}
-        {imageUrl && !isLoading && (
-          <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+        
+        {/* Toggle Compare Button (Only if we have both images and not loading) */}
+        {!isLoading && imageUrl && originalImageUrl && (
+            <button 
+                onClick={() => setIsComparing(!isComparing)}
+                className={`absolute top-3 right-3 z-30 p-2 rounded-full bg-black/60 hover:bg-indigo-600 text-white backdrop-blur-sm transition-all ${isComparing ? 'bg-indigo-600' : ''}`}
+                title="Compare with Original"
+            >
+                <CompareIcon className="w-5 h-5" />
+            </button>
         )}
-        {error && !isLoading && (
-            <div className="text-red-400 text-center p-4 flex flex-col items-center gap-4">
-                <p className="font-semibold">Generation Failed</p>
-                <p className="text-xs text-gray-400">{error}</p>
-                 <button onClick={onRetry} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors">
-                    <RetryIcon className="w-5 h-5" />
-                    Retry
-                </button>
-            </div>
-        )}
+
+        <div className="w-full h-full relative">
+             {imageUrl ? (
+                isComparing && originalImageUrl ? (
+                    <ComparisonSlider originalImage={originalImageUrl} generatedImage={imageUrl} />
+                ) : (
+                    <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+                )
+            ) : (
+                !isLoading && (
+                    <div className="text-gray-500 text-center p-4 flex items-center justify-center h-full">
+                        <p>Failed to generate.</p>
+                    </div>
+                )
+            )}
+        </div>
+
       </div>
-      <div className="p-4 flex-grow flex flex-col justify-between">
+      <div className="p-4 flex-grow flex flex-col justify-between border-t border-gray-700">
         <h3 className="font-bold text-lg text-white mb-3">{title}</h3>
         <div className="flex items-center justify-end space-x-2">
-           <button 
-            onClick={onCompare} 
-            disabled={!imageUrl}
-            className="p-2 rounded-full bg-gray-700 hover:bg-indigo-600 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white transition-colors"
-            title="Compare"
-          >
-            <CompareIcon className="w-5 h-5" />
-          </button>
           <button 
             onClick={() => imageUrl && onZoom(imageUrl)} 
             disabled={!imageUrl}

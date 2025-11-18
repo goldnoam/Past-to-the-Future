@@ -5,5 +5,4 @@ export interface GeneratedImage {
   prompt: string;
   src: string | null;
   isLoading: boolean;
-  error?: string | null;
 }

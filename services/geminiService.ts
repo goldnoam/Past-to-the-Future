@@ -58,7 +58,6 @@ export const generateImage = async (
     return null;
   } catch (error) {
     console.error("Error generating image:", error);
-    // Rethrow the error to be handled by the caller
-    throw error;
+    return null;
   }
 };
